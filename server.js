@@ -4,12 +4,12 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import express from "express";
-import OpenAI from "openai";
 
 const DIRETORIO_ATUAL = path.dirname(fileURLToPath(import.meta.url));
 const PORTA_PADRAO = 3000;
 
-export const MODELO_OPENAI = "gpt-6-astra";
+export const MODELO_OPENROUTER = "openrouter/free";
+const URL_CHAT_OPENROUTER = "https://openrouter.ai/api/v1/chat/completions";
 
 const INSTRUCOES_DO_ASSISTENTE = `
 Você é o PokéMentor, um guia amigável especializado no universo Pokémon.
@@ -63,29 +63,84 @@ function criarLimitador({ limite = 20, janelaEmMs = 60_000 } = {}) {
   };
 }
 
-function mensagemDoErroDaOpenAI(erro) {
+function mensagemDoErroDoOpenRouter(erro) {
   if (erro?.status === 401) {
-    return "A chave da API não foi aceita. Confira o valor de OPENAI_API_KEY no arquivo .env.";
+    return "A chave do OpenRouter não foi aceita. Confira OPENROUTER_API_KEY no arquivo .env.";
+  }
+
+  if (erro?.status === 402) {
+    return "O modelo solicitado exige créditos. O projeto está configurado para usar somente modelos gratuitos.";
   }
 
   if (erro?.status === 429) {
-    return "O limite da API foi atingido. Confira os créditos e limites da sua conta OpenAI.";
+    return "O limite gratuito do OpenRouter foi atingido. Aguarde a renovação do limite e tente novamente.";
   }
 
   if (erro?.status === 403) {
-    return "Sua conta não tem acesso ao modelo configurado para este projeto.";
+    return "Sua chave não tem permissão para utilizar o OpenRouter neste projeto.";
   }
 
-  return "Não foi possível consultar a OpenAI agora. Tente novamente em alguns instantes.";
+  if ([502, 503, 529].includes(erro?.status)) {
+    return "Nenhum provedor gratuito está disponível agora. Tente novamente em alguns instantes.";
+  }
+
+  return "Não foi possível consultar o OpenRouter agora. Tente novamente em alguns instantes.";
+}
+
+function criarErroDoOpenRouter(respostaHttp, dados) {
+  const mensagem = dados?.error?.message
+    ?? `O OpenRouter respondeu com o status HTTP ${respostaHttp.status}.`;
+  const erro = new Error(mensagem);
+
+  erro.status = respostaHttp.status;
+  erro.requestId = respostaHttp.headers.get("x-request-id");
+
+  return erro;
+}
+
+export function criarConsultaOpenRouter({ chaveDaApi, fetchImpl = fetch }) {
+  return async ({ pergunta }) => {
+    const respostaHttp = await fetchImpl(URL_CHAT_OPENROUTER, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${chaveDaApi}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: MODELO_OPENROUTER,
+        messages: [
+          { role: "system", content: INSTRUCOES_DO_ASSISTENTE },
+          { role: "user", content: pergunta },
+        ],
+      }),
+    });
+
+    let dados;
+
+    try {
+      dados = await respostaHttp.json();
+    } catch {
+      dados = null;
+    }
+
+    if (!respostaHttp.ok) {
+      throw criarErroDoOpenRouter(respostaHttp, dados);
+    }
+
+    return dados;
+  };
 }
 
 export function criarAplicacao({
-  chaveDaApi = process.env.OPENAI_API_KEY,
-  clienteOpenAI,
+  chaveDaApi = process.env.OPENROUTER_API_KEY,
+  enviarAoOpenRouter,
+  registrarErro = console.error,
 } = {}) {
   const aplicacao = express();
-  const cliente = clienteOpenAI ?? (chaveDaApi ? new OpenAI({ apiKey: chaveDaApi }) : null);
-  const apiConfigurada = Boolean(cliente);
+  const consultarOpenRouter = enviarAoOpenRouter ?? (chaveDaApi
+    ? criarConsultaOpenRouter({ chaveDaApi })
+    : null);
+  const apiConfigurada = Boolean(consultarOpenRouter);
 
   aplicacao.disable("x-powered-by");
 
@@ -100,7 +155,11 @@ export function criarAplicacao({
   aplicacao.use(express.static(path.join(DIRETORIO_ATUAL, "public")));
 
   aplicacao.get("/api/status", (requisicao, resposta) => {
-    resposta.json({ configurada: apiConfigurada, modelo: MODELO_OPENAI });
+    resposta.json({
+      configurada: apiConfigurada,
+      provedor: "OpenRouter",
+      modelo: MODELO_OPENROUTER,
+    });
   });
 
   aplicacao.post("/api/perguntar", criarLimitador(), async (requisicao, resposta) => {
@@ -111,37 +170,43 @@ export function criarAplicacao({
       return;
     }
 
-    if (!cliente) {
+    if (!consultarOpenRouter) {
       resposta.status(503).json({
-        erro: "A API ainda não está conectada. Adicione OPENAI_API_KEY ao arquivo .env e reinicie o servidor.",
+        erro: "O OpenRouter ainda não está conectado. Adicione OPENROUTER_API_KEY ao arquivo .env e reinicie o servidor.",
       });
       return;
     }
 
     try {
-      const retorno = await cliente.responses.create({
-        model: MODELO_OPENAI,
-        instructions: INSTRUCOES_DO_ASSISTENTE,
-        input: requisicao.body.pergunta.trim(),
+      const retorno = await consultarOpenRouter({
+        pergunta: requisicao.body.pergunta.trim(),
       });
 
-      const respostaDaIa = retorno.output_text?.trim();
+      const conteudo = retorno.choices?.[0]?.message?.content;
+      const respostaDaIa = typeof conteudo === "string" ? conteudo.trim() : "";
 
       if (!respostaDaIa) {
-        resposta.status(502).json({ erro: "A OpenAI respondeu, mas não retornou texto." });
+        resposta.status(502).json({ erro: "O OpenRouter respondeu, mas não retornou texto." });
         return;
       }
 
-      resposta.json({ resposta: respostaDaIa, modelo: MODELO_OPENAI });
+      resposta.json({
+        resposta: respostaDaIa,
+        modelo: retorno.model ?? MODELO_OPENROUTER,
+      });
     } catch (erro) {
-      console.error("Falha na chamada à OpenAI:", {
+      registrarErro("Falha na chamada ao OpenRouter:", {
         status: erro?.status,
-        requestId: erro?.request_id,
+        requestId: erro?.requestId,
         mensagem: erro?.message,
       });
 
-      resposta.status(erro?.status === 429 ? 429 : 502).json({
-        erro: mensagemDoErroDaOpenAI(erro),
+      const statusDoCliente = [401, 402, 403, 404, 429].includes(erro?.status)
+        ? erro.status
+        : 502;
+
+      resposta.status(statusDoCliente).json({
+        erro: mensagemDoErroDoOpenRouter(erro),
       });
     }
   });
@@ -168,8 +233,8 @@ if (executadoDiretamente) {
   aplicacao.listen(porta, () => {
     console.log(`PokéMentor disponível em http://localhost:${porta}`);
 
-    if (!process.env.OPENAI_API_KEY) {
-      console.log("Aguardando OPENAI_API_KEY no arquivo .env.");
+    if (!process.env.OPENROUTER_API_KEY) {
+      console.log("Aguardando OPENROUTER_API_KEY no arquivo .env.");
     }
   });
 }

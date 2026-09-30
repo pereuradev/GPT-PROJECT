@@ -35,8 +35,8 @@ async function verificarStatusDaApi() {
     statusApi.classList.toggle("connected", dados.configurada);
     statusApi.classList.toggle("disconnected", !dados.configurada);
     statusTexto.textContent = dados.configurada
-      ? `OpenAI conectada · ${dados.modelo}`
-      : "Adicione sua chave no arquivo .env";
+      ? `${dados.provedor} conectado · ${dados.modelo}`
+      : "Adicione sua chave do OpenRouter no arquivo .env";
   } catch {
     statusApi.classList.add("disconnected");
     statusTexto.textContent = "Servidor indisponível";
