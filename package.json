@@ -1,0 +1,31 @@
+{
+  "name": "gpt-project",
+  "version": "1.0.0",
+  "description": "Projeto de aprendizado prático da API da OpenAI com Node.js",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pereuradev/GPT-PROJECT.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bugs": {
+    "url": "https://github.com/pereuradev/GPT-PROJECT/issues"
+  },
+  "homepage": "https://github.com/pereuradev/GPT-PROJECT#readme",
+  "dependencies": {
+    "dotenv": "^18.0.5",
+    "express": "^5.2.1",
+    "openai": "^7.25.0"
+  }
+}

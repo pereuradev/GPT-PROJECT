@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="PokéMentor IA: faça perguntas sobre Pokémon e teste uma integração com a API da OpenAI."
+    />
+    <title>PokéMentor IA</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="background-grid" aria-hidden="true"></div>
+
+    <header class="hero">
+      <nav class="navbar" aria-label="Navegação principal">
+        <a class="brand" href="#inicio" aria-label="PokéMentor IA - início">
+          <span class="mini-pokeball" aria-hidden="true"></span>
+          <span>PokéMentor <strong>IA</strong></span>
+        </a>
+
+        <div class="api-status" id="api-status" role="status">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="status-texto">Verificando conexão...</span>
+        </div>
+      </nav>
+
+      <section class="hero-content" id="inicio">
+        <div class="hero-copy">
+          <span class="eyebrow">LABORATÓRIO DE TREINADORES</span>
+          <h1>Explore o mundo <span>Pokémon</span> com inteligência artificial</h1>
+          <p>
+            Escolha uma pergunta ou escreva a sua. O PokéMentor usa a API da
+            OpenAI para responder em português.
+          </p>
+          <a class="hero-button" href="#laboratorio">Começar uma pergunta</a>
+        </div>
+
+        <div class="pokemon-showcase" aria-label="Pokémon em destaque">
+          <div class="energy-ring" aria-hidden="true"></div>
+          <img class="pokemon pokemon-bulbasaur" src="/assets/bulbasaur.png" alt="Bulbasaur" />
+          <img class="pokemon pokemon-pikachu" src="/assets/pikachu.png" alt="Pikachu" />
+          <img class="pokemon pokemon-charmander" src="/assets/charmander.png" alt="Charmander" />
+          <img class="pokemon pokemon-squirtle" src="/assets/squirtle.png" alt="Squirtle" />
+          <span class="pokeball pokeball-one" aria-hidden="true"></span>
+          <span class="pokeball pokeball-two" aria-hidden="true"></span>
+        </div>
+      </section>
+    </header>
+
+    <main>
+      <section class="pokemon-cards" aria-labelledby="equipe-titulo">
+        <div class="section-heading">
+          <span class="eyebrow">CONHEÇA A EQUIPE</span>
+          <h2 id="equipe-titulo">Quatro clássicos para começar</h2>
+        </div>
+
+        <div class="card-grid">
+          <article class="pokemon-card grass-card">
+            <span class="pokemon-number">#0001</span>
+            <img src="/assets/bulbasaur.png" alt="Bulbasaur" loading="lazy" />
+            <div><h3>Bulbasaur</h3><span class="type grass">Planta</span><span class="type poison">Veneno</span></div>
+          </article>
+          <article class="pokemon-card fire-card">
+            <span class="pokemon-number">#0004</span>
+            <img src="/assets/charmander.png" alt="Charmander" loading="lazy" />
+            <div><h3>Charmander</h3><span class="type fire">Fogo</span></div>
+          </article>
+          <article class="pokemon-card water-card">
+            <span class="pokemon-number">#0007</span>
+            <img src="/assets/squirtle.png" alt="Squirtle" loading="lazy" />
+            <div><h3>Squirtle</h3><span class="type water">Água</span></div>
+          </article>
+          <article class="pokemon-card electric-card">
+            <span class="pokemon-number">#0025</span>
+            <img src="/assets/pikachu.png" alt="Pikachu" loading="lazy" />
+            <div><h3>Pikachu</h3><span class="type electric">Elétrico</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="laboratory" id="laboratorio" aria-labelledby="laboratorio-titulo">
+        <div class="laboratory-info">
+          <span class="eyebrow">POKÉDEX INTELIGENTE</span>
+          <h2 id="laboratorio-titulo">O que você quer descobrir?</h2>
+          <p>Experimente uma das perguntas abaixo ou crie a sua própria investigação.</p>
+
+          <div class="suggestions" aria-label="Perguntas sugeridas">
+            <button type="button" data-question="Qual é a diferença entre Pokémon de fogo e de água?">
+              Tipos fogo e água
+            </button>
+            <button type="button" data-question="Conte três curiosidades sobre o Pikachu.">
+              Curiosidades do Pikachu
+            </button>
+            <button type="button" data-question="Como funcionam as evoluções dos Pokémon?">
+              Como funciona a evolução?
+            </button>
+          </div>
+
+          <aside class="security-note">
+            <span aria-hidden="true">🔒</span>
+            <p><strong>Chave protegida:</strong> sua chave da OpenAI fica somente no servidor e nunca é enviada ao navegador.</p>
+          </aside>
+        </div>
+
+        <div class="chat-panel">
+          <div class="panel-header">
+            <span class="panel-icon" aria-hidden="true"><span class="mini-pokeball"></span></span>
+            <div><strong>PokéMentor</strong><small>Guia Pokémon com IA</small></div>
+          </div>
+
+          <div class="welcome-message">
+            <span aria-hidden="true">👋</span>
+            <p>Olá, treinador! Faça uma pergunta sobre Pokémon para testar a integração.</p>
+          </div>
+
+          <div class="answer" id="resposta" aria-live="polite" hidden>
+            <span class="answer-label">RESPOSTA DO POKÉMENTOR</span>
+            <p id="resposta-texto"></p>
+          </div>
+
+          <form id="pergunta-formulario">
+            <label for="pergunta">Sua pergunta</label>
+            <textarea
+              id="pergunta"
+              name="pergunta"
+              rows="4"
+              maxlength="500"
+              placeholder="Ex.: Por que o Pikachu é do tipo elétrico?"
+              required
+            ></textarea>
+            <div class="form-footer">
+              <span id="contador">0/500</span>
+              <button id="enviar" type="submit">
+                <span id="texto-botao">Perguntar à IA</span>
+                <span class="button-pokeball" aria-hidden="true"></span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span class="mini-pokeball" aria-hidden="true"></span>
+      <p>Projeto educacional não oficial. Pokémon e seus personagens pertencem aos respectivos titulares.</p>
+    </footer>
+  </body>
+</html>
